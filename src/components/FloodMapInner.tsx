@@ -10,6 +10,7 @@ import L from 'leaflet';
 import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { API_ENDPOINTS } from '@/config/api';
+import { getRegionNameForWard, fetchRegionNames } from '../services/regionMapping';
 
 // --- Type Definitions ---
 interface WardProperties {
@@ -38,6 +39,17 @@ export default function FloodMapInner() {
   const [error, setError] = useState<string | null>(null);
   const [hoveredWard, setHoveredWard] = useState<WardProperties | null>(null);
   const [peakWard, setPeakWard] = useState<string | null>(null);
+  const [regionMap, setRegionMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    // Fetch region mapping data
+    async function fetchRegionData() {
+      const regions = await fetchRegionNames();
+      setRegionMap(regions);
+    }
+    
+    fetchRegionData();
+  }, []);
 
   useEffect(() => {
     async function fetchData() {
@@ -216,10 +228,13 @@ export default function FloodMapInner() {
   }, []);
 
   const onEachFeature = (feature: WardFeature, layer: L.Layer) => {
-    // Add tooltip with ward name
+    // Get region name for this ward
+    const regionName = getRegionNameForWard(feature.properties.Name);
+    
+    // Add tooltip with region name
     const tooltipContent = `
       <div style="text-align: center;">
-        <strong>${feature.properties.Name}</strong>
+        <strong>${regionName}</strong>
         <div style="font-size: 0.9em; margin-top: 3px;">
           ${feature.properties.flood_probability.toFixed(1)}% risk
         </div>
@@ -456,7 +471,12 @@ export default function FloodMapInner() {
             <div className="flex items-center">
               <MapPin className="h-6 w-6 mr-3 text-blue-500" />
               <div className="w-full">
-                <h3 className="text-lg font-semibold">{hoveredWard ? hoveredWard.Name : "Hover over a ward"}</h3>
+                <h3 className="text-lg font-semibold">
+                  {hoveredWard 
+                    ? getRegionNameForWard(hoveredWard.Name)
+                    : "Hover over a region"
+                  }
+                </h3>
                 <div className="text-sm text-gray-500">
                   {hoveredWard ? (
                     <div className="flex flex-col gap-1">

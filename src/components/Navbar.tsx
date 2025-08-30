@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, DropletIcon, LineChart } from 'lucide-react';
+import { BarChart3, DropletIcon, LineChart, Map } from 'lucide-react';
 
 export default function Navbar() {
   const pathname = usePathname();

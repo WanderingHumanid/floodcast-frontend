@@ -5,9 +5,9 @@
 
 // Ensure the correct host is used even if development port changes
 const getBaseUrl = () => {
-  // In development, always use http://127.0.0.1:5000
-  // This avoids any issues with localhost vs 127.0.0.1 and ensures CORS works correctly
-  return `http://127.0.0.1:5000/api`;
+  // Use environment variable if set, otherwise fallback to local development
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5000';
+  return `${apiUrl}/api`;
 };
 
 export const API_BASE_URL = getBaseUrl();

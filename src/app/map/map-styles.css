@@ -1,0 +1,45 @@
+/* Custom styles for the map component */
+
+/* Override Leaflet's default popup styles */
+.leaflet-popup-content-wrapper {
+  padding: 0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.leaflet-popup-content {
+  margin: 0;
+  padding: 10px;
+  width: auto !important;
+}
+
+/* Custom tooltip styles */
+.custom-tooltip {
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 8px;
+  font-size: 14px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Make sure the map container takes the full height of its parent */
+.leaflet-container {
+  height: 100%;
+  width: 100%;
+}
+
+/* Fix for leaflet controls in dark mode */
+.dark .leaflet-control {
+  background-color: #1f2937;
+  color: white;
+}
+
+.dark .leaflet-control a {
+  color: white;
+}
+
+/* Make the map container rounded */
+.leaflet-container {
+  border-radius: 0.5rem;
+}
