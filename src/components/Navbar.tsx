@@ -32,19 +32,6 @@ export default function Navbar() {
               Dashboard
             </Link>
             <Link 
-              href="/validation" 
-              className={`px-3 py-2 rounded-md text-sm font-medium ${
-                pathname === '/validation' 
-                  ? 'bg-blue-600 text-white' 
-                  : 'text-gray-700 hover:bg-blue-100 dark:text-gray-300 dark:hover:bg-gray-700'
-              }`}
-            >
-              <div className="flex items-center">
-                <LineChart className="h-4 w-4 mr-1" />
-                <span>Validation</span>
-              </div>
-            </Link>
-            <Link 
               href="/alerts" 
               className={`px-3 py-2 rounded-md text-sm font-medium ${
                 pathname === '/alerts' 
