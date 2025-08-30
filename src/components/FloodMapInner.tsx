@@ -583,7 +583,7 @@ export default function FloodMapInner() {
                 <Tooltip 
                   formatter={(value: number) => [`${value.toFixed(1)}%`, 'Flood Probability']}
                   labelFormatter={(label, payload) => {
-                    // @ts-ignore - payload has extra properties we added
+                    // @ts-expect-error - payload has extra properties we added
                     const timeBlock = payload[0]?.payload?.timeBlock || '';
                     return `${label} (${timeBlock})`;
                   }}
