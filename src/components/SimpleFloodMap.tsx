@@ -26,9 +26,17 @@ export default function SimpleFloodMap() {
   const [peakWard, setPeakWard] = useState<string | null>(null);
 
   useEffect(() => {
-    // Use mock data for demonstration
-    const mockData = getMockData();
+    // Set a timeout to show error message after 1 minute
+    const backendTimeoutId = setTimeout(() => {
+      if (loading) {
+        setLoading(false);
+        setError('Taking too long? Maybe there is a problem with our backend. We sincerely apologize for your inconvenience.');
+      }
+    }, 60000); // 1 minute
+
+    // Use mock data for demonstration - this would normally be replaced with API fetch
     try {
+      const mockData = getMockData();
       console.log("Processing mock GeoJSON data...");
       const parsedGeoJson = JSON.parse(mockData.geoJson) as WardGeoJson;
       console.log(`Parsed GeoJSON features: ${parsedGeoJson.features.length} wards loaded`);
@@ -54,6 +62,11 @@ export default function SimpleFloodMap() {
       console.error(err);
       setLoading(false);
     }
+
+    // Clean up function to clear timeout when component unmounts
+    return () => {
+      clearTimeout(backendTimeoutId);
+    };
   }, []);
 
   const onEachFeature = (feature: WardFeature, layer: L.Layer) => {
@@ -264,7 +277,14 @@ export default function SimpleFloodMap() {
   if (loading) return (
     <div className="flex items-center justify-center h-full">
       <Loader2 className="h-12 w-12 animate-spin" />
-      <p className="ml-4 text-lg">Loading map...</p>
+      <p className="ml-4 text-lg">Generating map...</p>
+    </div>
+  );
+
+  if (error) return (
+    <div className="flex flex-col items-center justify-center h-full p-4 bg-red-50 rounded-md">
+      <p className="text-red-700 font-medium mb-2">{error}</p>
+      <p className="text-sm text-gray-600">You can still navigate to other sections of the app.</p>
     </div>
   );
 

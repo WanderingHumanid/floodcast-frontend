@@ -52,11 +52,22 @@ export default function FloodMapInner() {
   }, []);
 
   useEffect(() => {
+    // Variable to hold the timeout reference
+    let backendTimeoutId: NodeJS.Timeout | null = null;
+
     async function fetchData() {
       try {
         setLoading(true);
         setError(null);
         console.log("Fetching data from:", API_ENDPOINTS.forecast);
+        
+        // Set a timeout to show error message after 1 minute
+        backendTimeoutId = setTimeout(() => {
+          if (loading) {
+            setLoading(false);
+            setError('Taking too long? Maybe there is a problem with our backend. We sincerely apologize for your inconvenience.');
+          }
+        }, 60000); // 1 minute
         
         // Try to fetch data from the API
         try {
@@ -65,24 +76,21 @@ export default function FloodMapInner() {
             const data = await response.json();
             console.log('API Response received:', data);
             processApiData(data);
+            if (backendTimeoutId) clearTimeout(backendTimeoutId); // Clear the timeout as data was received successfully
+            setLoading(false);
             return;
           } else {
             console.error("API response not OK:", response.status, response.statusText);
+            throw new Error(`API responded with status: ${response.status}`);
           }
         } catch (fetchError) {
           console.error("Error fetching API:", fetchError);
-          // Continue to fallback data
+          // Do not use fallback data anymore, just keep showing loading until timeout
         }
-        
-        // Fallback to mock data if API fails
-        console.log("Using fallback mock data");
-        const mockData = getMockData();
-        processApiData(mockData);
-        
       } catch (err) {
+        if (backendTimeoutId) clearTimeout(backendTimeoutId); // Clear the timeout if we have an immediate error
         setError('Failed to process data.');
         console.error(err);
-      } finally {
         setLoading(false);
       }
     }
@@ -144,88 +152,15 @@ export default function FloodMapInner() {
       }
     }
     
-    // Function to provide mock data when API is not available
-    function getMockData() {
-      return {
-        "geoJson": JSON.stringify({
-          "type": "FeatureCollection",
-          "features": [
-            {
-              "type": "Feature",
-              "geometry": {
-                "type": "Polygon",
-                "coordinates": [[[76.294, 9.965], [76.301, 9.965], [76.304, 9.957], [76.294, 9.957], [76.294, 9.965]]]
-              },
-              "properties": {
-                "Name": "Kadavanthra",
-                "ward_number": "1",
-                "flood_probability": 85,
-                "inundation_percent": 68,
-                "color": "#ff9900"
-              }
-            },
-            {
-              "type": "Feature",
-              "geometry": {
-                "type": "Polygon",
-                "coordinates": [[[76.305, 9.959], [76.312, 9.959], [76.312, 9.952], [76.305, 9.952], [76.305, 9.959]]]
-              },
-              "properties": {
-                "Name": "Elamkulam",
-                "ward_number": "2",
-                "flood_probability": 65,
-                "inundation_percent": 52,
-                "color": "#ffff00"
-              }
-            },
-            {
-              "type": "Feature",
-              "geometry": {
-                "type": "Polygon",
-                "coordinates": [[[76.323, 9.987], [76.331, 9.987], [76.331, 9.979], [76.323, 9.979], [76.323, 9.987]]]
-              },
-              "properties": {
-                "Name": "Vennala",
-                "ward_number": "3",
-                "flood_probability": 45,
-                "inundation_percent": 36,
-                "color": "#00ff00"
-              }
-            },
-            {
-              "type": "Feature",
-              "geometry": {
-                "type": "Polygon",
-                "coordinates": [[[76.312, 9.983], [76.322, 9.983], [76.322, 9.975], [76.312, 9.975], [76.312, 9.983]]]
-              },
-              "properties": {
-                "Name": "Palarivattom",
-                "ward_number": "4",
-                "flood_probability": 75,
-                "inundation_percent": 60,
-                "color": "#ff9900"
-              }
-            }
-          ]
-        }),
-        "peakFloodProbability": 85,
-        "topFactors": [
-          {"feature": "Water Level", "shap_value": 0.75},
-          {"feature": "Rainfall", "shap_value": 0.65},
-          {"feature": "Tide Height", "shap_value": 0.55},
-          {"feature": "Ground Elevation", "shap_value": 0.45},
-          {"feature": "Drainage Capacity", "shap_value": 0.35}
-        ],
-        "hourlyForecast": Array.from({length: 24}, (_, i) => ({
-          "hour": `${i.toString().padStart(2, '0')}:00`,
-          "probability": Math.round(50 + 25 * Math.sin(i * Math.PI / 12))
-        })),
-        "lastUpdated": new Date().toISOString()
-      };
-    }
-    
     fetchData();
-  }, []);
+    
+    // Clean up function to clear timeout when component unmounts
+    return () => {
+      if (backendTimeoutId) {
+        clearTimeout(backendTimeoutId);
+      }
+    };
+  }, []); // Empty dependency array means this effect runs only once when component mounts
 
   const onEachFeature = (feature: WardFeature, layer: L.Layer) => {
     // Get region name for this ward
@@ -388,23 +323,16 @@ export default function FloodMapInner() {
   if (loading) return (
     <div className="flex items-center justify-center h-full">
       <Loader2 className="h-12 w-12 animate-spin" />
-      <p className="ml-4 text-lg">Generating Forecast...</p>
+      <p className="ml-4 text-lg">Generating map...</p>
     </div>
   );
 
   if (error) return (
     <Alert variant="destructive" className="m-4">
-      <AlertTitle>Error</AlertTitle>
+      <AlertTitle>Backend Connection Issue</AlertTitle>
       <AlertDescription>
-        <div>
-          <p>{error}</p>
-          <div className="mt-4">
-            <p className="font-bold">Debug Information:</p>
-            <p>API URL: {API_ENDPOINTS.forecast}</p>
-            <p>GeoJSON Loaded: {geojsonData ? 'Yes' : 'No'}</p>
-            <p>API Data Loaded: {apiData ? 'Yes' : 'No'}</p>
-          </div>
-        </div>
+        <p>{error}</p>
+        <p className="mt-3 text-sm">You can still navigate to other sections of the app.</p>
       </AlertDescription>
     </Alert>
   );
@@ -582,8 +510,7 @@ export default function FloodMapInner() {
                 />
                 <Tooltip 
                   formatter={(value: number) => [`${value.toFixed(1)}%`, 'Flood Probability']}
-                  labelFormatter={(label, payload) => {
-                    // @ts-expect-error - payload has extra properties we added
+                  labelFormatter={(label, payload: any) => {
                     const timeBlock = payload[0]?.payload?.timeBlock || '';
                     return `${label} (${timeBlock})`;
                   }}

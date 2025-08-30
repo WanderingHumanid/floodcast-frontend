@@ -20,7 +20,7 @@ export default function MapPage() {
           <Suspense fallback={
             <div className="flex items-center justify-center h-full">
               <Loader2 className="h-12 w-12 animate-spin" />
-              <p className="ml-4 text-lg">Loading map...</p>
+              <p className="ml-4 text-lg">Generating map...</p>
             </div>
           }>
             <FloodMapWithNoSSR />

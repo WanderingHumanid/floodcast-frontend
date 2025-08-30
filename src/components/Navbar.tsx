@@ -3,7 +3,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, DropletIcon, LineChart, Map } from 'lucide-react';
+import { BarChart3, DropletIcon, LineChart, Map, AlertTriangle } from 'lucide-react';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -30,6 +30,19 @@ export default function Navbar() {
               }`}
             >
               Dashboard
+            </Link>
+            <Link 
+              href="/emergency" 
+              className={`px-3 py-2 rounded-md text-sm font-medium ${
+                pathname === '/emergency' 
+                  ? 'bg-amber-600 text-white' 
+                  : 'text-gray-700 hover:bg-amber-100 dark:text-gray-300 dark:hover:bg-gray-700'
+              }`}
+            >
+              <div className="flex items-center">
+                <AlertTriangle className="h-4 w-4 mr-1" />
+                <span>Emergency</span>
+              </div>
             </Link>
             <Link 
               href="/alerts" 

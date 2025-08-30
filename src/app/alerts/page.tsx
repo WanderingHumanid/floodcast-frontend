@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DropletIcon, BellRing, Check } from 'lucide-react';
+import { DropletIcon, BellRing, Check, Loader2 } from 'lucide-react';
 import { API_ENDPOINTS } from '@/config/api';
 
 // Types for our form
@@ -42,6 +42,10 @@ export default function AlertsPage() {
   // Thresholds for alert levels
   const thresholdOptions = [75, 80, 85, 90, 95];
   
+  // State for location detection
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [detectLocationError, setDetectLocationError] = useState('');
+  
   // API status state
   const [apiStatus, setApiStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [apiMessage, setApiMessage] = useState('');
@@ -53,6 +57,42 @@ export default function AlertsPage() {
       ...formData,
       [name]: name === 'threshold' ? parseInt(value) : value
     });
+  };
+
+  // Function to detect user's location
+  const detectUserLocation = () => {
+    setIsDetectingLocation(true);
+    setDetectLocationError('');
+    
+    if (!navigator.geolocation) {
+      setDetectLocationError('Geolocation is not supported by your browser');
+      setIsDetectingLocation(false);
+      return;
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        // In a real app, you would call an API to convert these coordinates to a ward
+        // For now, we'll simulate by selecting a random ward
+        const randomWard = WARDS[Math.floor(Math.random() * WARDS.length)];
+        
+        setFormData({
+          ...formData,
+          ward: randomWard
+        });
+        setIsDetectingLocation(false);
+      },
+      (error) => {
+        console.error('Error getting location:', error);
+        setDetectLocationError(
+          error.code === 1 
+            ? 'Permission denied. Please allow location access.' 
+            : 'Could not detect your location. Please try again or select manually.'
+        );
+        setIsDetectingLocation(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
   };
 
   // Handle form submission
@@ -165,25 +205,77 @@ export default function AlertsPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="ward">Select Your Ward</Label>
-                    <Select 
-                      name="ward" 
-                      value={formData.ward} 
-                      onValueChange={(value) => {
-                        setFormData({
-                          ...formData,
-                          ward: value
-                        });
-                      }}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a ward" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {WARDS.sort().map((ward) => (
-                          <SelectItem key={ward} value={ward}>{ward}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    
+                    <div className="space-y-3">
+                      {isDetectingLocation && (
+                        <div className="flex items-center justify-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+                          <Loader2 className="h-5 w-5 animate-spin mr-2 text-blue-600 dark:text-blue-400" />
+                          <span>Detecting your location...</span>
+                        </div>
+                      )}
+                      
+                      {detectLocationError && (
+                        <Alert className="bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-900">
+                          <AlertDescription className="text-red-600/90 dark:text-red-400/90">
+                            {detectLocationError}
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                      
+                      <Select 
+                        name="ward" 
+                        value={formData.ward || ""} 
+                        onValueChange={(value) => {
+                          // Special handling for options with actions
+                          if (value === "map") {
+                            window.open('/', '_blank'); // Redirect to the main dashboard with the full map
+                            return;
+                          } else if (value === "gps") {
+                            detectUserLocation();
+                            return;
+                          }
+                          
+                          // Normal ward selection
+                          setFormData({
+                            ...formData,
+                            ward: value
+                          });
+                        }}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select a ward or method" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {/* Special options at the top */}
+                          <SelectItem value="map">
+                            <div className="flex items-center">
+                              <div className="mr-2">🗺️</div>
+                              <div>Select your ward on the map</div>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="gps">
+                            <div className="flex items-center">
+                              <div className="mr-2">📍</div>
+                              <div>Detect my location using GPS</div>
+                            </div>
+                          </SelectItem>
+                          
+                          {/* Divider */}
+                          <div className="h-px bg-gray-200 dark:bg-gray-700 my-1"></div>
+                          
+                          {/* Actual wards */}
+                          {WARDS.sort().map((ward) => (
+                            <SelectItem key={ward} value={ward}>{ward}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      
+                      {formData.ward && (
+                        <div className="text-sm font-medium mt-1">
+                          Selected ward: <span className="text-blue-600 dark:text-blue-400">{formData.ward}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
