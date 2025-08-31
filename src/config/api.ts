@@ -17,6 +17,10 @@ export const API_ENDPOINTS = {
   currentConditions: `${API_BASE_URL}/current-conditions`,
   wards: `${API_BASE_URL}/wards`,
   alerts: `${API_BASE_URL}/alerts`,
+  alertsWithSms: `${API_BASE_URL}/alerts/register-with-sms`,
+  smsInfo: `${API_BASE_URL}/alerts/sms/info`,
+  smsSimulator: `${API_BASE_URL}/alerts/sms/simulator`,
+  twilioTest: `${API_BASE_URL}/alerts/twilio/test`,
   metrics: `${API_BASE_URL}/metrics`,
   modelVerification: `${API_BASE_URL}/model-verification`,
 };

@@ -7,8 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DropletIcon, BellRing, Check, Loader2 } from 'lucide-react';
+import { DropletIcon, BellRing, Check, Loader2, SmartphoneIcon, MailIcon, TabletSmartphone } from 'lucide-react';
 import { API_ENDPOINTS } from '@/config/api';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/components/ui/use-toast";
 
 // Types for our form
 interface AlertFormData {
@@ -17,6 +19,14 @@ interface AlertFormData {
   email: string;
   phone: string;
   threshold: number;
+  send_test?: boolean;
+}
+
+// SMS service info
+interface SmsServiceInfo {
+  provider: string;
+  enabled: boolean;
+  status: string;
 }
 
 // Available wards
@@ -36,8 +46,16 @@ export default function AlertsPage() {
     ward: '',
     email: '',
     phone: '',
-    threshold: 75
+    threshold: 75,
+    send_test: false
   });
+
+  // SMS service info
+  const [smsServiceInfo, setSmsServiceInfo] = useState<SmsServiceInfo | null>(null);
+  const [smsStatus, setSmsStatus] = useState<'loading' | 'available' | 'unavailable'>('loading');
+  
+  // Tabs state
+  const [activeTab, setActiveTab] = useState<'email' | 'sms'>('email');
 
   // Thresholds for alert levels
   const thresholdOptions = [75, 80, 85, 90, 95];
@@ -49,6 +67,36 @@ export default function AlertsPage() {
   // API status state
   const [apiStatus, setApiStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [apiMessage, setApiMessage] = useState('');
+  
+  // Toast notifications
+  const { toast } = useToast();
+
+  // Fetch SMS service info on component mount
+  useEffect(() => {
+    const fetchSmsServiceInfo = async () => {
+      try {
+        setSmsStatus('loading');
+        const response = await fetch(API_ENDPOINTS.smsInfo);
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.sms_service) {
+            setSmsServiceInfo(data.sms_service);
+            setSmsStatus(data.sms_service.enabled ? 'available' : 'unavailable');
+          } else {
+            setSmsStatus('unavailable');
+          }
+        } else {
+          setSmsStatus('unavailable');
+        }
+      } catch (error) {
+        console.error('Error fetching SMS service info:', error);
+        setSmsStatus('unavailable');
+      }
+    };
+    
+    fetchSmsServiceInfo();
+  }, []);
 
   // Handle form input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -95,6 +143,71 @@ export default function AlertsPage() {
     );
   };
 
+  // Send a test SMS
+  const sendTestSms = async (phoneNumber: string) => {
+    if (!phoneNumber) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter a phone number to send a test SMS",
+      });
+      return;
+    }
+    
+    try {
+      setApiStatus('loading');
+      
+      toast({
+        title: "Sending test SMS...",
+        description: `Attempting to send SMS to ${phoneNumber}`,
+      });
+      
+      const response = await fetch(API_ENDPOINTS.twilioTest, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          phone: phoneNumber,
+          message: 'This is a test SMS from FloodCast Alert System'
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        setApiStatus('success');
+        setApiMessage(`Test SMS sent to ${phoneNumber}!`);
+        
+        toast({
+          variant: "default",
+          title: "SMS Sent Successfully ✅",
+          description: `The test message has been sent to ${phoneNumber}`,
+        });
+      } else {
+        setApiStatus('error');
+        setApiMessage(data.error || 'Failed to send test SMS');
+        
+        toast({
+          variant: "destructive",
+          title: "Failed to Send SMS",
+          description: data.error || "There was a problem sending the SMS message",
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error sending test SMS:', error);
+      setApiStatus('error');
+      setApiMessage('Network error while sending test SMS');
+      
+      toast({
+        variant: "destructive",
+        title: "Network Error",
+        description: "Could not connect to the SMS service. Please try again.",
+      });
+    }
+  };
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,13 +216,37 @@ export default function AlertsPage() {
       // Set loading state
       setApiStatus('loading');
       
+      // Create submission data based on active tab
+      const submissionData = {
+        ...formData
+      };
+      
+      // If on SMS tab, make sure phone is required
+      if (activeTab === 'sms' && !submissionData.phone) {
+        setApiStatus('error');
+        setApiMessage('Phone number is required for SMS alerts');
+        setShowConfirmation(true);
+        return;
+      }
+      
+      // If on Email tab, make sure email is required
+      if (activeTab === 'email' && !submissionData.email) {
+        setApiStatus('error');
+        setApiMessage('Email address is required for email alerts');
+        setShowConfirmation(true);
+        return;
+      }
+      
+      // Choose the appropriate endpoint
+      const endpoint = activeTab === 'sms' ? API_ENDPOINTS.alertsWithSms : API_ENDPOINTS.alerts;
+      
       // Send data to backend API
-      const response = await fetch(API_ENDPOINTS.alerts, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(submissionData),
       });
       
       const data = await response.json();
@@ -119,6 +256,12 @@ export default function AlertsPage() {
         setApiStatus('success');
         setApiMessage(data.message || 'Alert set up successfully!');
         setShowConfirmation(true);
+        
+        // If SMS server info was returned, update it
+        if (data.sms_server) {
+          setSmsServiceInfo(data.sms_service);
+          setSmsStatus(data.sms_service.enabled ? 'available' : 'unavailable');
+        }
       } else {
         // API error
         setApiStatus('error');
@@ -184,11 +327,119 @@ export default function AlertsPage() {
                       <Check className="h-5 w-5 text-green-600 dark:text-green-400" />
                       <AlertTitle className="text-green-600 dark:text-green-400">Alert Set Up Successfully</AlertTitle>
                       <AlertDescription className="text-green-600/90 dark:text-green-400/90">
-                        You will receive alerts when {formData.ward} ward's flood risk exceeds {formData.threshold}%.
+                        {activeTab === 'sms' ? (
+                          <>
+                            You will receive SMS alerts at {formData.phone} when {formData.ward} ward's flood risk exceeds {formData.threshold}%.
+                            {smsServiceInfo && (
+                              <div className="mt-2">
+                                <Button 
+                                  type="button" 
+                                  variant="outline" 
+                                  onClick={() => sendTestSms(formData.phone)}
+                                  className="mt-2 text-sm"
+                                  disabled={!formData.phone}
+                                >
+                                  <TabletSmartphone className="h-4 w-4 mr-2" />
+                                  Send Test SMS
+                                </Button>
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            You will receive email alerts at {formData.email} when {formData.ward} ward's flood risk exceeds {formData.threshold}%.
+                          </>
+                        )}
                       </AlertDescription>
                     </Alert>
                   )
                 ) : null}
+
+                {/* Select alert type tabs */}
+                <div className="mb-6">
+                  <div className="flex space-x-4 mb-2">
+                    <div
+                      className={`flex-1 p-4 rounded-md cursor-pointer border transition-colors ${
+                        activeTab === 'email' 
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                          : 'border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800/50'
+                      }`}
+                      onClick={() => setActiveTab('email')}
+                    >
+                      <div className="flex items-center">
+                        <MailIcon className={`h-5 w-5 mr-2 ${activeTab === 'email' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`} />
+                        <div>
+                          <div className={`font-medium ${activeTab === 'email' ? 'text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'}`}>Email Alerts</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Receive alerts via email</div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div
+                      className={`flex-1 p-4 rounded-md cursor-pointer border transition-colors ${
+                        activeTab === 'sms' 
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                          : 'border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-800/50'
+                      }`}
+                      onClick={() => setActiveTab('sms')}
+                    >
+                      <div className="flex items-center">
+                        <SmartphoneIcon className={`h-5 w-5 mr-2 ${activeTab === 'sms' ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`} />
+                        <div>
+                          <div className={`font-medium ${activeTab === 'sms' ? 'text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'}`}>SMS Alerts</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">Get notifications on your phone</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* SMS Service Info */}
+                  {activeTab === 'sms' && (
+                    <div className="mt-2 mb-4">
+                      {smsStatus === 'loading' ? (
+                        <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-md flex items-center">
+                          <Loader2 className="h-4 w-4 animate-spin mr-2 text-gray-500" />
+                          <span className="text-sm text-gray-500">Checking SMS service availability...</span>
+                        </div>
+                      ) : smsStatus === 'available' ? (
+                        <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-md">
+                          <div className="flex items-center">
+                            <Check className="h-4 w-4 text-green-600 dark:text-green-400 mr-2" />
+                            <span className="text-sm text-green-600 dark:text-green-400">
+                              SMS alerts are enabled via Twilio
+                            </span>
+                          </div>
+                          <p className="text-xs text-green-600/80 dark:text-green-400/80 mt-1">
+                            Real SMS messages will be sent to your phone when flood risk exceeds your threshold.
+                            <button 
+                              onClick={() => sendTestSms(formData.phone)}
+                              disabled={!formData.phone}
+                              className="ml-1 underline hover:text-green-800 dark:hover:text-green-300"
+                            >
+                              Send test SMS
+                            </button>
+                          </p>
+                          <p className="text-[10px] text-gray-400 mt-2 opacity-50 hover:opacity-100 transition-opacity">
+                            <a 
+                              href={`${API_ENDPOINTS.smsSimulator}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="underline"
+                            >
+                              View SMS simulator (dev only)
+                            </a>
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md">
+                          <span className="text-sm text-yellow-600 dark:text-yellow-400">
+                            SMS service unavailable. Your alerts will be registered but SMS delivery might be delayed.
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="space-y-2">
@@ -278,31 +529,48 @@ export default function AlertsPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email Address</Label>
-                      <Input
-                        type="email"
-                        id="email"
-                        name="email"
-                        required
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        placeholder="your.email@example.com"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Phone Number</Label>
-                      <Input
-                        type="tel"
-                        id="phone"
-                        name="phone"
-                        value={formData.phone}
-                        onChange={handleInputChange}
-                        placeholder="+91 98765 43210"
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    {activeTab === 'email' ? (
+                      <>
+                        <Label htmlFor="email">Email Address</Label>
+                        <Input
+                          type="email"
+                          id="email"
+                          name="email"
+                          required={activeTab === 'email'}
+                          value={formData.email}
+                          onChange={handleInputChange}
+                          placeholder="your.email@example.com"
+                        />
+                      </>
+                    ) : (
+                      <>
+                        <Label htmlFor="phone">Phone Number</Label>
+                        <Input
+                          type="tel"
+                          id="phone"
+                          name="phone"
+                          required={activeTab === 'sms'}
+                          value={formData.phone}
+                          onChange={handleInputChange}
+                          placeholder="+91 98765 43210"
+                        />
+                        {smsStatus === 'available' && (
+                          <div className="flex items-center space-x-2 mt-2">
+                            <input
+                              type="checkbox"
+                              id="send_test"
+                              checked={formData.send_test}
+                              onChange={(e) => setFormData({...formData, send_test: e.target.checked})}
+                              className="h-4 w-4 text-blue-600 rounded border-gray-300"
+                            />
+                            <Label htmlFor="send_test" className="text-sm font-normal cursor-pointer">
+                              Send me a test SMS after registration
+                            </Label>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -345,7 +613,7 @@ export default function AlertsPage() {
                           Setting Up...
                         </>
                       ) : (
-                        'Set Up Alerts'
+                        `Set Up ${activeTab === 'sms' ? 'SMS' : 'Email'} Alerts`
                       )}
                     </Button>
                   </div>
@@ -362,7 +630,8 @@ export default function AlertsPage() {
                             ward: '',
                             email: '',
                             phone: '',
-                            threshold: 75
+                            threshold: 75,
+                            send_test: false
                           });
                           setApiStatus('idle');
                           setShowConfirmation(false);
@@ -412,6 +681,43 @@ export default function AlertsPage() {
                     Receive notifications via email and SMS to ensure you never miss critical warnings.
                   </p>
                 </div>
+
+                {activeTab === 'sms' && smsStatus === 'available' && (
+                  <div className="border-l-4 border-green-600 pl-4 py-2">
+                    <h3 className="font-medium text-gray-900 dark:text-gray-100">Twilio SMS Integration</h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      We use Twilio to deliver real-time SMS alerts directly to your phone. Standard SMS rates may apply based on your carrier.
+                      {formData.phone && (
+                        <button 
+                          onClick={() => sendTestSms(formData.phone)}
+                          className="ml-1 text-blue-600 underline hover:text-blue-800 dark:text-blue-400"
+                        >
+                          Send test SMS now
+                        </button>
+                      )}
+                    </p>
+                    <p className="text-[9px] text-gray-400 mt-1 opacity-40 hover:opacity-90 transition-opacity">
+                      <a 
+                        href={`${API_ENDPOINTS.smsSimulator}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="underline mr-2"
+                      >
+                        Local SMS simulator
+                      </a>
+                      <span className="mx-1">•</span>
+                      <a 
+                        href="/developer/sms-test" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="underline"
+                      >
+                        SMS test utility
+                      </a>
+                      <span className="ml-1">(developers only)</span>
+                    </p>
+                  </div>
+                )}
                 
                 <div className="rounded-md bg-blue-50 dark:bg-blue-900/20 p-4 mt-4">
                   <div className="flex items-start">

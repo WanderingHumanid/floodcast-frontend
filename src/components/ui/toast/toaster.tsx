@@ -9,7 +9,7 @@ export const Toaster = () => {
 
   return (
     <div
-      className="fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]"
+      className="fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse gap-3 p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]"
     >
       {toasts.map(function ({ id, title, description, action }) {
         return (
@@ -25,8 +25,10 @@ export const Toaster = () => {
             </div>
             {action}
             <button
+              type="button"
+              aria-label="Close notification"
               onClick={() => dismiss(id)}
-              className="absolute right-2 top-2 rounded-md p-1 text-gray-500 opacity-0 transition-opacity hover:text-gray-900 focus:opacity-100 focus:outline-none focus:ring-2 group-hover:opacity-100"
+              className="absolute right-2 top-2 rounded-md p-1 text-gray-500 hover:text-gray-900 focus:outline-none focus:ring-2 cursor-pointer"
             >
               <X className="h-4 w-4" />
             </button>

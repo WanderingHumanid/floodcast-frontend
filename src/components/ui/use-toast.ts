@@ -88,14 +88,11 @@ const reducer = (state: State, action: Action): State => {
         }
       }
 
+      // Remove the toast when dismissed
       return {
         ...state,
-        toasts: state.toasts.map((t) =>
-          t.id === toastId || toastId === undefined
-            ? {
-                ...t,
-              }
-            : t
+        toasts: state.toasts.filter((t) => 
+          t.id !== toastId && toastId !== undefined
         ),
       }
     }
@@ -148,6 +145,13 @@ function toast({ ...props }: Toast) {
       action: props.action,
     },
   })
+
+  // Auto-dismiss after TOAST_REMOVE_DELAY
+  const timeout = setTimeout(() => {
+    dispatch({ type: "REMOVE_TOAST", toastId: id })
+  }, TOAST_REMOVE_DELAY)
+
+  toastTimeouts.set(id, timeout)
 
   return {
     id,
