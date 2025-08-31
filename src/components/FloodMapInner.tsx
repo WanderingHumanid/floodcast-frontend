@@ -61,13 +61,7 @@ export default function FloodMapInner() {
         setError(null);
         console.log("Fetching data from:", API_ENDPOINTS.forecast);
         
-        // Set a timeout to show error message after 1 minute
-        backendTimeoutId = setTimeout(() => {
-          if (loading) {
-            setLoading(false);
-            setError('Taking too long? Maybe there is a problem with our backend. We sincerely apologize for your inconvenience.');
-          }
-        }, 60000); // 1 minute
+        // No timeout for error message, just keep showing "Generating Map..." until backend responds
         
         // Try to fetch data from the API
         try {
@@ -76,7 +70,6 @@ export default function FloodMapInner() {
             const data = await response.json();
             console.log('API Response received:', data);
             processApiData(data);
-            if (backendTimeoutId) clearTimeout(backendTimeoutId); // Clear the timeout as data was received successfully
             setLoading(false);
             return;
           } else {
@@ -85,7 +78,7 @@ export default function FloodMapInner() {
           }
         } catch (fetchError) {
           console.error("Error fetching API:", fetchError);
-          // Do not use fallback data anymore, just keep showing loading until timeout
+          // Keep showing loading, don't show error
         }
       } catch (err) {
         if (backendTimeoutId) clearTimeout(backendTimeoutId); // Clear the timeout if we have an immediate error

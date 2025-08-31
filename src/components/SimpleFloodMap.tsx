@@ -26,13 +26,7 @@ export default function SimpleFloodMap() {
   const [peakWard, setPeakWard] = useState<string | null>(null);
 
   useEffect(() => {
-    // Set a timeout to show error message after 1 minute
-    const backendTimeoutId = setTimeout(() => {
-      if (loading) {
-        setLoading(false);
-        setError('Taking too long? Maybe there is a problem with our backend. We sincerely apologize for your inconvenience.');
-      }
-    }, 60000); // 1 minute
+    // No timeout for error message, just keep showing "Generating Map..." until backend responds
 
     // Use mock data for demonstration - this would normally be replaced with API fetch
     try {
@@ -63,9 +57,9 @@ export default function SimpleFloodMap() {
       setLoading(false);
     }
 
-    // Clean up function to clear timeout when component unmounts
+    // Clean up function when component unmounts
     return () => {
-      clearTimeout(backendTimeoutId);
+      // No timeout to clear
     };
   }, []);
 
