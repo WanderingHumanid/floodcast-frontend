@@ -61,8 +61,8 @@ export const fetchRegionNames = async (): Promise<Record<string, string>> => {
     // Since that requires geospatial analysis, for now let's use a static mapping
     // This is where you would replace with actual region names for each ward
     wardToRegionMap ={
-  "Ward-1": "Fort Kochi",
-  "Ward-2": "Kalvathy",
+  "Ward-1": "North Island",
+  "Ward-2": "South Island",
   "Ward-3": "Earaveli",
   "Ward-4": "Karippalam",
   "Ward-5": "Mattanchery",
@@ -89,8 +89,8 @@ export const fetchRegionNames = async (): Promise<Record<string, string>> => {
   "Ward-26": "Nazreth",
   "Ward-27": "Fortkochi veli",
   "Ward-28": "Amaravathy",
-  "Ward-29": "Island North",
-  "Ward-30": "Island South",
+  "Ward-29": "Thattazham",
+  "Ward-30": "Kalvatty",
   "Ward-31": "Vaduthala West",
   "Ward-32": "Vaduthala East",
   "Ward-33": "Elamakkara North",
@@ -134,7 +134,7 @@ export const fetchRegionNames = async (): Promise<Record<string, string>> => {
   "Ward-71": "Elamakkara South",
   "Ward-72": "Pottakuzhy",
   "Ward-73": "Pachalam",
-  "Ward-74": "Thattazham"
+  "Ward-74": "Fort Kochi"
 };
 
     return wardToRegionMap;
